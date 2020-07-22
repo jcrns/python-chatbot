@@ -1,6 +1,6 @@
 venv/
 data/chat.txt
-data/formatted_movies_lines.txt
+data/formatted_movie_lines.txt
 data/train.txt
 data/idx_a.npy
 data/idx_q.npy

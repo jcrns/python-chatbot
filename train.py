@@ -61,7 +61,7 @@ idx2word = idx2word + ['start_id', 'end_id']
 src_vocab_size = tgt_vocab_size = src_vocab_size + 2
 
 # Defining number of epochs
-num_epochs = 50
+num_epochs = 0
 
 
 vocabulary_size = src_vocab_size

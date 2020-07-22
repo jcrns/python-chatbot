@@ -12,7 +12,7 @@ EN_WHITELIST = '0123456789abcdefghijklmnopqrstuvwxyz ' # space is included in wh
 EN_BLACKLIST = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~\''
 
 # Filename of text we will format
-filenames = ['formatted_movie_lines.txt']
+filenames = ['chat.txt']
 
 # Defining limits
 limit = {

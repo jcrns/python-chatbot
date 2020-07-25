@@ -3,7 +3,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.keys import Keys
-from random import randint
+from random import randint, choice
 from time import sleep
 import logging
 import sqlite3
@@ -24,6 +24,16 @@ class NewInsta:
             "send": "button"
         }
 
+        # Defining list of greetings
+        self.greetings = [
+            'hello',
+            'hey',
+            'Yo',
+            'Wsp',
+            'Wyd'
+            'Hi'
+        ]
+
         # Creating driver 
         if headless == True:
             options = Options()
@@ -42,6 +52,7 @@ class NewInsta:
         # self.driver.find_element_by_xpath("//input[@name=\"q\"]").send_keys(query)
         # self.driver.find_element_by_xpath("//input[@name=\"q\"]").send_keys(Keys.RETURN)
         # self.driver.submit()
+        self.username = username
 
 
     def login(self, username, password):
@@ -103,21 +114,27 @@ class NewInsta:
                 accountButton = div
                 print('found div')
                 break
-
-        accountButton.click()
+        
+        self.driver.execute_script("arguments[0].click();", accountButton)
         self.__randomSleep__(1, 2)
 
         # Clicking next
         for div in divs:
-            if div.text == 'Next':
-                div.click()
-                break
+            try:
+                if div.text == 'Next':
+                    self.driver.execute_script("arguments[0].click();", div)
+                    break
+            except Exception as e:
+                print(e)
+                continue
         
         # Go to page
         self.__randomSleep__()
         self.driver.find_elements_by_xpath("*//textarea")[0].send_keys(message)
 
+
         self.__randomSleep__()
+        print('clicking button')
         buttons = self.driver.find_elements_by_css_selector(self.selectors['send'])
         buttons[len(buttons)-1].click()
 
@@ -137,7 +154,7 @@ class NewInsta:
                 print(button.text)
                 if button.text == 'Not Now':
                     print('aaa')
-                    button.click()
+                    self.driver.execute_script("arguments[0].click();", button)
                     break
         except Exception as e:
             logging.error(e)
@@ -164,10 +181,10 @@ class NewInsta:
         # Clicking next
         for div in divs:
             if div.text == 'Next':
-                div.click()
+                self.driver.execute_script("arguments[0].click();", div)
                 break
 
-        # Go to page
+        # Sending message
         self.__randomSleep__()
         self.driver.find_elements_by_xpath("*//textarea")[0].send_keys(message)
 
@@ -178,7 +195,8 @@ class NewInsta:
 
         self.__randomSleep__()
 
-    def listener(self):
+    def automatic(self, hitUpChance=100, checkUp=1000):
+
         # Trying to load model to get response
         try:
             load_weights = tl.files.load_npz(name='model.npz')
@@ -208,17 +226,74 @@ class NewInsta:
         originalSourceCode = self.driver.page_source
         counter = 0
         self.openMessage()
+
+        self.__randomSleep__(1, 3)
+        
+        # Trying to open requests
+        self.acceptRequest()
+            
+        # Creating infinate loop
         while True:
+            
             counter += 1
             print('iteration', counter)
+            
             self.__randomSleep__(3, 5)
             newSourceCode = self.driver.page_source
+            
+            # Checking if page changed
             if originalSourceCode == newSourceCode:
                 print('same')
             else:
                 print('changed')
                 self.openMessage()
                 originalSourceCode = self.driver.page_source
+
+            # Checking for random chance when bot will follow a user and message or message an already existing friend
+            # if randint(0, hitUpChance) < 1:
+            self.hitUp()
+
+            # elif randint(0, checkUp) < 1:
+            #     self.checkUp()
+    
+    def acceptRequest(self):
+        print('looking at request')
+
+        while True:
+            self.driver.get('https://www.instagram.com/direct/requests/')
+            self.__randomSleep__(3, 5)
+            # Looping through request and accepting
+            # Getting unanswered convos
+            requests = self.driver.find_elements_by_tag_name('a')
+            requestUrlList = []
+            for request in requests:
+                href = request.get_attribute("href") 
+                if '/direct/t/' in href:
+                    print('request div')
+                    print(href)
+                    requestUrlList.append(request)
+            
+            if len(requestUrlList) == 0:
+                self.driver.get('https://www.instagram.com/direct/inbox/')
+                break
+
+            for request in requestUrlList:
+                request.click()
+                self.__randomSleep__(3, 5)
+                divs = self.driver.find_elements_by_tag_name('div')
+                for div in divs:
+                    print(div.text)
+                    if div.text == 'Accept':
+                        div.click()
+                        print('Clicked Accept')
+                        break
+                break
+
+            print(requestUrlList)
+            print("requestUrlList")
+                        
+        
+    
     def openMessage(self):
         
         unansweredConvos = []
@@ -268,20 +343,191 @@ class NewInsta:
             
             self.__randomSleep__(1, 3)
             
-            responses = []
+            self.replyToMessage(message.text)
+            self.driver.get('https://www.instagram.com/direct/inbox/')
+
+    def hitUp(self):
+        print('following and hitting someone up')
+
+        # Going to followers page
+        username = self.username
+        profilePage = f"https://instagram.com/{username}/"
+        self.driver.get(profilePage)
+
+        # Clicking the following button
+        links = self.driver.find_elements_by_tag_name('a')
+        for link in links:
+            href = link.get_attribute("href") 
+            print(href)
+            if '/following/' in href:
+                self.driver.execute_script("arguments[0].click();", link)
+                break
+        
+        self.__randomSleep__(1, 3)
+
+        divTags = self.driver.find_elements_by_tag_name('div')
+        for div in divTags:
+            roleDiv = div.get_attribute("role")
+            if roleDiv == 'dialog':
+                print('found role with dialog')
+                break
+        
+        followingLinks = []
+        # Getting list of users
+        buttonTags = div.find_elements_by_tag_name('button')
+        for button in buttonTags:
+            buttonType = button.get_attribute("type")
+            if button.text == 'Following':
+                parentDiv = button.find_element_by_xpath('../..')
+                
+                # Getting a tag
+                aTag = parentDiv.find_elements_by_tag_name('a')
+                print(len(aTag))
+                print("len(aTag)")
+                for tag in aTag:
+                    aTagTitle = tag.get_attribute("title")
+                    if tag.text:
+                        if aTagTitle == tag.text:
+                            print('found')
+                            followingLinks.append(tag)
+                        print(tag.text)
+        
+        friendElement = choice(followingLinks)
+        self.__randomSleep__(1, 3)
+
+        self.driver.execute_script("arguments[0].click();", friendElement)
+        
+        self.__randomSleep__(1, 3)
+
+        # Clicking followers
+        aTags = self.driver.find_elements_by_tag_name('a')
+        for tag in aTags:
+            link = tag.get_attribute("href") 
+            if '/followers/' in link:
+                self.driver.execute_script("arguments[0].click();", tag)
+                print('wow')
+                break
+
+        self.__randomSleep__(1, 3)
+        
+        # Getting list of users
+        unorderedLists = self.driver.find_elements_by_tag_name('ul')
+        
+        # Getting main list of followers
+        for ul in unorderedLists:
+            print('ayee')
+            try:
+                listDiv = ul.find_element_by_tag_name('div')
+                liTag = listDiv.find_elements_by_tag_name('li')
+            except Exception as e:
+                continue
+        
+        print('clicking')
+        friendElement = choice(liTag)
+        self.__randomSleep__(1, 3)
+        
+        link = friendElement.find_element_by_tag_name('a')
+        self.driver.execute_script("arguments[0].click();", link)
+
+        self.__randomSleep__(1, 3)
+        # Following and messaging person
+        header = self.driver.find_element_by_tag_name('section')
+        
+        print('Following')
+        # Getting button with follow in it
+        buttons =  header.find_elements_by_tag_name('button')
+        for button in buttons:
+            if button.text == 'Follow':
+                button.click()
+
+        self.__randomSleep__(1, 3)
+        print('Clicking message')
+        # Getting spans with message in it
+        buttons =  header.find_elements_by_tag_name('button')
+        for button in buttons:
+            if button.text == 'Message':
+                self.driver.execute_script("arguments[0].click();", button)
+                print('clicked message')
+                break
+
+        self.__randomSleep__(1, 3)
+        # Sending greating message
+        self.replyToMessage()
+
+        self.driver.get('https://www.instagram.com/direct/inbox/')
+
+    def checkUp(self):
+        self.driver.get("https://www.instagram.com/direct/inbox/")
+        print('dismissing notification')
+        # Try to dismiss notification
+        try:
+            # Looping through buttons of page
+            buttons = self.driver.find_elements_by_tag_name('button')
+            for button in buttons:
+                print(button.text)
+                if button.text == 'Not Now':
+                    print('aaa')
+                    button.click()
+                    break
+        except Exception as e:
+            logging.error(e)
+        
+        print('Checking up on someone')
+
+        self.__randomSleep__()
+        unansweredConvos = []
+        
+        # Getting unanswered convos
+        aTags = self.driver.find_elements_by_tag_name('a')
+        print(len(aTags))
+        for link in aTags:
+            href = link.get_attribute("href") 
+            if '/direct/t/' in href:
+                unansweredConvos.append(link)
+
+        print(unansweredConvos)
+        friendDiv = choice(unansweredConvos)
+        self.driver.execute_script("arguments[0].scrollIntoView();", friendDiv)
+        friendDiv.click()
+        self.__randomSleep__()
+
+        # Sending greating message
+        self.replyToMessage()
+
+
+    # GENERAL PURPOSE FUNCTIONS
+    def replyToMessage(self, message=None):
+        
+        print('dismissing notification')
+        # Try to dismiss notification
+        try:
+            # Looping through buttons of page
+            buttons = self.driver.find_elements_by_tag_name('button')
+            for button in buttons:
+                print(button.text)
+                if button.text == 'Not Now':
+                    print('aaa')
+                    button.click()
+                    break
+        except Exception as e:
+            logging.error(e)
+        
+        if message:
             top_n = 1
             for i in range(top_n):
-                sentence = inference(message.text, top_n)
+                sentence = inference(message, top_n)
                 sentence = ' '.join(sentence)
                 print(sentence)
                 responses.append(sentence)
-
-            self.driver.find_elements_by_xpath("*//textarea")[0].send_keys(sentence)
-            self.__randomSleep__()
-            buttons = self.driver.find_elements_by_css_selector(
-                self.selectors['send'])
-            buttons[len(buttons)-1].click()
-            self.driver.get('https://www.instagram.com/direct/inbox/')
-
-
+        else:
+            sentence = choice(self.greetings)
         
+        self.__randomSleep__()
+        self.driver.find_elements_by_xpath("*//textarea")[0].send_keys(sentence)
+
+        self.__randomSleep__()
+        buttons = self.driver.find_elements_by_css_selector(
+            self.selectors['send'])
+        buttons[len(buttons)-1].click()
+
+        self.__randomSleep__()
